@@ -6,12 +6,14 @@ from sqlalchemy.engine import URL
 
 # sql server set up
 odbc_string = (
-    "DRIVER={ODBC Driver 17 for SQL Server};"
-    "SERVER=localhost\\SQLEXPRESS;"
-    "DATABASE=LibraryDB;"
-    "Trusted_Connection=yes;"
-    "Encrypt=yes;"
-    "TrustServerCertificate=yes;"
+     
+        "DRIVER={ODBC Driver 17 for SQL Server};"
+            "SERVER=localhost;"  # use MIS\\INSTANCE if yours is a named instance
+                "DATABASE=LibraryDB;"
+                    "Trusted_Connection=yes;"
+                        "Encrypt=yes;"
+                            "TrustServerCertificate=yes;"
+                        
                              )
 
 connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": odbc_string} )
