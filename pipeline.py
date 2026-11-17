@@ -49,9 +49,9 @@ def format_ints(df,col):
     return df
 
  # calculate date
-def calculate_date(df,col1,col2):
+def calculate_date(df,returned,checkout):
     print(f"calculated days")
-    return (df[col1] - df[col2]).dt.days  
+    return (df[returned] - df[checkout]).dt.days  
      
 
 def clean_df ():
@@ -81,7 +81,7 @@ def clean_df ():
         format_ints(df,c)
 
     # calculate date
-    df['days_borrowed'] = calculate_date(df,'book_checkout',  'book_returned')
+    df['days_borrowed'] = calculate_date(df,'book_returned',  'book_checkout')
     format_ints(df,'days_borrowed')
 
     # write to csv
@@ -109,8 +109,8 @@ def clean_df2():
     print(f"written clean data to csv2")
 
 def clean_pipeline():
-    clean_df
-    clean_df2
+    clean_df()
+    clean_df2()
 
 if __name__ == "__main__":
     # Main capability triggered IF this is run as an executable.
