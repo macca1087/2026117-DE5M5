@@ -27,7 +27,7 @@ engine = create_engine(connection_url)
 def format_columns(df):
     """Standardise column names to lowercase snake_case."""
     df.columns = (
-        df.columns.str.strip().str.lower().str.replace(r"\s+, "_", regex=True)
+        df.columns.str.strip().str.lower().str.replace(r"\s+", "_", regex=True)
     )
     print("Converted column names to snake_case")
     return df
