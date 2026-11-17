@@ -1,5 +1,25 @@
 import pandas as pd
 
+from sqlalchemy import create_engine
+from sqlalchemy.engine import URL
+
+
+# sql server set up
+odbc_string = (
+    "DRIVER={ODBC Driver 17 for SQL Server};"
+    "SERVER=localhost\\SQLEXPRESS;"
+    "DATABASE=LibraryDB;"
+    "Trusted_Connection=yes;"
+    "Encrypt=yes;"
+    "TrustServerCertificate=yes;"
+                             )
+
+connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": odbc_string} )
+engine = create_engine(connection_url)
+                             
+
+
+
 
 # functions
 
@@ -53,6 +73,16 @@ def calculate_date(df,returned,checkout):
     print(f"calculated days")
     return (df[returned] - df[checkout]).dt.days  
      
+def write_to_sql(df, table_name):
+        with engine.begin() as connection:
+                    df.to_sql(
+                                    name=table_name,
+                                                con=connection,
+                                                            schema="dbo",
+                                                                        if_exists="append",
+                                                                                    index=False
+                    )
+                    
 
 def clean_df ():
     # read in csv
@@ -88,6 +118,9 @@ def clean_df ():
     df.to_csv('data/03_Library Systembook_cleaned.csv')
     print(f"written clean data to csv")
 
+    #
+    write_to_sql(df,'systembook')
+    print(f"written df to db")
 
 # DF 2 transformation-----------------------
 
@@ -107,6 +140,9 @@ def clean_df2():
     # write to csv
     df2.to_csv('data/03_Library SystemCustomers_cleaned.csv')
     print(f"written clean data to csv2")
+    
+    write_to_sql(df2,'systembook')
+    print(f"written df2 to db")
 
 def clean_pipeline():
     clean_df()
