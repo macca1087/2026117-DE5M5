@@ -77,12 +77,11 @@ def calculate_date(df,returned,checkout):
      
 def write_to_sql(df, table_name):
         with engine.begin() as connection:
-                    df.to_sql(
-                                    name=table_name,
-                                                con=connection,
-                                                            schema="dbo",
-                                                                        if_exists="append",
-                                                                                    index=False
+                    df.to_sql(name=table_name,
+                              con=connection,
+                              schema="dbo",
+                            if_exists="append",
+                            index=False
                     )
                     
 
@@ -143,7 +142,7 @@ def clean_df2():
     df2.to_csv('data/03_Library SystemCustomers_cleaned.csv')
     print(f"written clean data to csv2")
     
-    write_to_sql(df2,'systembook')
+    write_to_sql(df2,'customers')
     print(f"written df2 to db")
 
 def clean_pipeline():
