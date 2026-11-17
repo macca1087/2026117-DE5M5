@@ -1,154 +1,151 @@
 import pandas as pd
-
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 
 
-# sql server set up
+# SQL Server connection for the local development VM.
+SQL_SERVER = "localhost"
+SQL_DATABASE = "LibraryDB"
+SQL_DRIVER = "ODBC Driver 17 for SQL Server"
+
 odbc_string = (
-     
-        "DRIVER={ODBC Driver 17 for SQL Server};"
-            "SERVER=localhost;" 
-                "DATABASE=LibraryDB;"
-                    "Trusted_Connection=yes;"
-                        "Encrypt=yes;"
-                            "TrustServerCertificate=yes;"
-                        
-                             )
+    f"DRIVER={{{SQL_DRIVER}}};"
+    f"SERVER={SQL_SERVER};"
+    f"DATABASE={SQL_DATABASE};"
+    "Trusted_Connection=yes;"
+    "Encrypt=yes;"
+    "TrustServerCertificate=yes;"
+)
 
-connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": odbc_string} )
+connection_url = URL.create(
+    "mssql+pyodbc",
+    query={"odbc_connect": odbc_string},
+)
 engine = create_engine(connection_url)
-                             
 
 
-
-
-# functions
-
-# cols to underscore
-def format_cols(df):
+def format_columns(df):
+    """Standardise column names to lowercase snake_case."""
     df.columns = (
-            df.columns
-                .str.strip()
-                        .str.lower()
-                            .str.replace(r"\s+", "_", regex=True)
-                            )
-    print(f"converted col_names to underscore")
+        df.columns.str.strip().str.lower().str.replace(r"\\s+", "_", regex=True)
+    )
+    print("Converted column names to snake_case")
     return df
 
-# drop na
-def dropna(df):
-    df = df.dropna()
-    print(f"dropped null records")
-    return df
-    
 
-# remove quotes from book checkout
-def remove_quotes(df):
-    df["book_checkout"] = (
-            df["book_checkout"]
-                .astype("string")
-                        .str.replace('"', "", regex=False)
-                            .str.strip()
-                            )
-    print(f"removed quotes")
-    return df
-# format date
+def drop_missing_rows(df):
+    """Drop rows that contain one or more missing values."""
+    cleaned_df = df.dropna()
+    print(f"Dropped {len(df) - len(cleaned_df)} rows with missing values")
+    return cleaned_df
 
-def format_date(df,col):
-    df[col] = pd.to_datetime(
-        df[col],
-            format="%d/%m/%Y",
-                errors="coerce"
-                )
-    print(f"formatted dates for col {col}")
+
+def remove_quotes(df, column_name):
+    """Remove quote characters and surrounding whitespace from a column."""
+    df[column_name] = (
+        df[column_name]
+        .astype("string")
+        .str.replace('"', "", regex=False)
+        .str.strip()
+    )
+    print(f"Removed quotes from {column_name}")
     return df
 
-# format ids
-def format_ints(df,col):
-    df[col] = df[col].astype("Int64")
-    print(f"formatted ints for col {col}")
+
+def parse_date_column(df, column_name):
+    """Parse dates in day/month/year format; invalid values become NaT."""
+    df[column_name] = pd.to_datetime(
+        df[column_name],
+        format="%d/%m/%Y",
+        errors="coerce",
+    )
+    print(f"Parsed dates in {column_name}")
     return df
 
- # calculate date
-def calculate_date(df,returned,checkout):
-    print(f"calculated days")
-    return (df[returned] - df[checkout]).dt.days  
-     
+
+def convert_to_nullable_int(df, column_name):
+    """Convert a column to pandas' nullable integer type."""
+    df[column_name] = df[column_name].astype("Int64")
+    print(f"Converted {column_name} to nullable integers")
+    return df
+
+
+def calculate_days_borrowed(df, returned_column, checkout_column):
+    """Calculate the number of days between checkout and return."""
+    print("Calculated days borrowed")
+    return (df[returned_column] - df[checkout_column]).dt.days
+
+
 def write_to_sql(df, table_name):
-        with engine.begin() as connection:
-                    df.to_sql(name=table_name,
-                              con=connection,
-                              schema="dbo",
-                            if_exists="append",
-                            index=False
-                    )
-                    
+    """Append a DataFrame to a table in the configured SQL Server database."""
+    with engine.begin() as connection:
+        df.to_sql(
+            name=table_name,
+            con=connection,
+            schema="dbo",
+            if_exists="append",
+            index=False,
+        )
+    print(f"Wrote {len(df)} rows to dbo.{table_name}")
 
-def clean_df ():
-    # read in csv
-    df_raw = pd.read_csv('data/03_Library Systembook.csv')
-    print(f"Read in csv")
-    #  create a working copy
-    df = df_raw
 
-    # cols to underscore
-    df = format_cols(df)
-    # drop na
-    df = dropna(df)
-    # remove quotes from book checkout
-    df = remove_quotes(df)
+def save_outputs(df, csv_path, table_name):
+    """Save cleaned data to CSV and SQL Server."""
+    df.to_csv(csv_path, index=False)
+    print(f"Wrote cleaned data to {csv_path}")
+    write_to_sql(df, table_name)
 
-    # correct date cols
-    date_cols = ['book_checkout',  'book_returned']
 
-    for c in date_cols:
-        format_date(df,c)
+def clean_books():
+    """Load, clean, and save the book-loan data."""
+    df = pd.read_csv("data/03_Library Systembook.csv")
+    print("Read book-loan data")
 
-    # correct id  cols
-    id_cols = ['id', 'customer_id']
+    df = format_columns(df)
+    df = drop_missing_rows(df)
+    df = remove_quotes(df, "book_checkout")
 
-    for c in  id_cols:
-        format_ints(df,c)
+    for column in ("book_checkout", "book_returned"):
+        df = parse_date_column(df, column)
 
-    # calculate date
-    df['days_borrowed'] = calculate_date(df,'book_returned',  'book_checkout')
-    format_ints(df,'days_borrowed')
+    for column in ("id", "customer_id"):
+        df = convert_to_nullable_int(df, column)
 
-    # write to csv
-    df.to_csv('data/03_Library Systembook_cleaned.csv')
-    print(f"written clean data to csv")
+    df["days_borrowed"] = calculate_days_borrowed(
+        df,
+        returned_column="book_returned",
+        checkout_column="book_checkout",
+    )
+    df = convert_to_nullable_int(df, "days_borrowed")
 
-    #
-    write_to_sql(df,'systembook')
-    print(f"written df to db")
+    save_outputs(
+        df,
+        "data/03_Library Systembook_cleaned.csv",
+        "systembook",
+    )
 
-# DF 2 transformation-----------------------
 
-# read in csv
-def clean_df2():
-    df2_raw = pd.read_csv('data/03_Library SystemCustomers.csv')
-    print(f"read in csv 2")
-    # create a working copy
-    df2 = df2_raw
-    # format cols
-    df2 = format_cols(df2)
-    # drop na
-    df2 = dropna(df2)
-    # format ints
-    df2 = format_ints(df2,'customer_id')
-    df2['customer_id'] = df2['customer_id'].astype("Int64")
-    # write to csv
-    df2.to_csv('data/03_Library SystemCustomers_cleaned.csv')
-    print(f"written clean data to csv2")
-    
-    write_to_sql(df2,'customers')
-    print(f"written df2 to db")
+def clean_customers():
+    """Load, clean, and save the customer data."""
+    df = pd.read_csv("data/03_Library SystemCustomers.csv")
+    print("Read customer data")
+
+    df = format_columns(df)
+    df = drop_missing_rows(df)
+    df = convert_to_nullable_int(df, "customer_id")
+
+    save_outputs(
+        df,
+        "data/03_Library SystemCustomers_cleaned.csv",
+        "customers",
+    )
+
 
 def clean_pipeline():
-    clean_df()
-    clean_df2()
+    """Run all data-cleaning steps."""
+    clean_books()
+    clean_customers()
+
 
 if __name__ == "__main__":
-    # Main capability triggered IF this is run as an executable.
     clean_pipeline()
