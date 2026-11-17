@@ -8,7 +8,7 @@ from sqlalchemy.engine import URL
 odbc_string = (
      
         "DRIVER={ODBC Driver 17 for SQL Server};"
-            "SERVER=localhost;"  # use MIS\\INSTANCE if yours is a named instance
+            "SERVER=localhost;" 
                 "DATABASE=LibraryDB;"
                     "Trusted_Connection=yes;"
                         "Encrypt=yes;"
