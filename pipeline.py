@@ -63,7 +63,7 @@ def parse_date_column(df, column_name):
     return df
 
 
-def convert_to_nullable_int(df, column_name):
+def convert_to_int(df, column_name):
     """Convert a column to pandas' nullable integer type."""
     df[column_name] = df[column_name].astype("Int64")
     print(f"Converted {column_name} to nullable integers")
@@ -138,14 +138,14 @@ def clean_books():
     print(f"Flagged {int(df['date_issue'].sum())} rows with invalid dates")
 
     for column in ("id", "customer_id"):
-        df = convert_to_nullable_int(df, column)
+        df = convert_to_int(df, column)
 
     df["days_borrowed"] = calculate_days_borrowed(
         df,
         returned_column="book_returned",
         checkout_column="book_checkout",
     )
-    df = convert_to_nullable_int(df, "days_borrowed")
+    df = convert_to_int(df, "days_borrowed")
     df["valid_loan_flag"] = df["days_borrowed"].ge(0).astype("boolean")
     print(f"Flagged {int(df['valid_loan_flag'].eq(False).sum())} negative durations")
 
@@ -163,7 +163,7 @@ def clean_customers():
 
     df = format_columns(df)
     df = drop_missing_rows(df)
-    df = convert_to_nullable_int(df, "customer_id")
+    df = convert_to_int(df, "customer_id")
 
     save_outputs(
         df,
