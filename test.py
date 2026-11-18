@@ -67,7 +67,7 @@ class TestPipeline(unittest.TestCase):
                 ):
                     pipeline.save_outputs(df, "cleaned.csv", "customers")
 
-            mock_to_csv.assert_called_once_with("cleaned.csv", Index=False)       
+            mock_to_csv.assert_called_once_with("cleaned.csv", index=False)       
             mock_write.assert_called_once_with(df, "customers")
                                                                                                                 
 
