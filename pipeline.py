@@ -1,4 +1,5 @@
 import pandas as pd
+import argparse
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
 
@@ -114,16 +115,17 @@ def write_to_sql(df, table_name):
     )
 
 
-def save_outputs(df, csv_path, table_name):
+def save_outputs(df, csv_path, table_name, write_sql=False):
     """Save cleaned data to CSV and insert new records into SQL Server."""
     df.to_csv(csv_path, index=False)
     print(f"Wrote cleaned data to {csv_path}")
-    write_to_sql(df, table_name)
+    if write_sql:
+        write_to_sql(df, table_name)
 
 
-def clean_books():
+def clean_books(write_sql=False, input_path):
     """Load, clean, and save the book-loan data."""
-    df = pd.read_csv("data/03_Library Systembook.csv")
+    df = pd.read_csv(input_path)
     print("Read book-loan data")
 
     df = format_columns(df)
@@ -153,12 +155,13 @@ def clean_books():
         df,
         "data/03_Library Systembook_cleaned.csv",
         "systembook",
+        write_sql=write_sql
     )
 
 
-def clean_customers():
+def clean_customers(write_sql=False, input_path):
     """Load, clean, and save the customer data."""
-    df = pd.read_csv("data/03_Library SystemCustomers.csv")
+    df = pd.read_csv(input_path)
     print("Read customer data")
 
     df = format_columns(df)
@@ -169,14 +172,38 @@ def clean_customers():
         df,
         "data/03_Library SystemCustomers_cleaned.csv",
         "customers",
+        write_sql=write_sql
     )
 
-
-def clean_pipeline():
+def clean_pipeline( write_sql=False, books_path, customer_path):
     """Run all data-cleaning steps."""
-    clean_books()
-    clean_customers()
+    clean_books( write_sql=False, books_path)
+    clean_customers( write_sql=False,customer_path)
 
+def main():
+        parser = argparse.ArgumentParser(
+            description="Clean library data and save it to CSV."
+                        )
+        parser.add_argument(
+            "--write-sql",
+            action="store_true",
+            help="Also write the cleaned data to SQL Server.",
+            ),
+        parser.add_argument(    
+            "--books-file",
+            default="data/03_Library Systembook.csv",
+            help="Path to the book-loan CSV",
+                ),
+        parser.add_argument( "--customers-file",
+            default="data/03_Library SystemCustomers.csv",
+            help="Path to the customer CSV",
+                        )
+        args = parser.parse_args()
+        clean_pipeline(write_sql=args.write_sql)
+        
 
 if __name__ == "__main__":
-    clean_pipeline()
+    main()
+
+
+
