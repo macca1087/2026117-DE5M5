@@ -71,5 +71,23 @@ class TestPipeline(unittest.TestCase):
             mock_write.assert_called_once_with(df, "customers")
                                                                                                                 
 
+    def test_write_to_sql_inserts_only_new_ids(self):
+        df = pd.DataFrame({"id": [1, 2]})
+
+        with (
+            patch("pipeline.engine") as mock_engine,
+            patch("pipeline.inspect") as mock_inspect,
+            patch.object(pd.DataFrame, "to_sql", autospec=True) as mock_to_sql,
+        ):
+            connection = mock_engine.begin.return_value.__enter__.return_value
+            mock_inspect.return_value.has_table.return_value = True
+            connection.execute.return_value = [(1,)]
+
+            pipeline.write_to_sql(df, "systembook")
+
+            rows_written = mock_to_sql.call_args.args[0]
+            self.assertEqual(rows_written["id"].tolist(), [2])
+
+
 if __name__ == "__main__":
     unittest.main()
