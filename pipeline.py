@@ -210,4 +210,4 @@ if __name__ == "__main__":
     main()
 
 
-
+# py pipeline.py --write-sql --books-file "data/03_Library Systembook.csv" --customers-file "data/03_Library SystemCustomers.csv"
