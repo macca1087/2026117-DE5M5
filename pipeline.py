@@ -123,7 +123,7 @@ def save_outputs(df, csv_path, table_name, write_sql=False):
         write_to_sql(df, table_name)
 
 
-def clean_books(write_sql=False, input_path):
+def clean_books(input_path, write_sql=False):
     """Load, clean, and save the book-loan data."""
     df = pd.read_csv(input_path)
     print("Read book-loan data")
@@ -159,7 +159,7 @@ def clean_books(write_sql=False, input_path):
     )
 
 
-def clean_customers(write_sql=False, input_path):
+def clean_customers(input_path, write_sql=False):
     """Load, clean, and save the customer data."""
     df = pd.read_csv(input_path)
     print("Read customer data")
@@ -175,10 +175,10 @@ def clean_customers(write_sql=False, input_path):
         write_sql=write_sql
     )
 
-def clean_pipeline( write_sql=False, books_path, customer_path):
+def clean_pipeline(  books_path, customer_path, write_sql=False):
     """Run all data-cleaning steps."""
-    clean_books( write_sql=False, books_path)
-    clean_customers( write_sql=False,customer_path)
+    clean_books( books_path, write_sql=False)
+    clean_customers(customer_path, write_sql=False)
 
 def main():
         parser = argparse.ArgumentParser(
@@ -199,8 +199,12 @@ def main():
             help="Path to the customer CSV",
                         )
         args = parser.parse_args()
-        clean_pipeline(write_sql=args.write_sql)
-        
+ 
+        clean_pipeline( 
+            books_path=args.books_file,
+            customer_path=args.customers_file,
+            write_sql=args.write_sql,
+                )       
 
 if __name__ == "__main__":
     main()
