@@ -1,11 +1,13 @@
-import pandas as pd
 import argparse
-from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.engine import URL
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
+from time import perf_counter
+from uuid import uuid4
 
 import pandas as pd
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import URL
 
 
 # SQL Server connection for the local development VM.
@@ -96,6 +98,53 @@ def save_dataframe_to_sqlite(df, db_path, table_name):
     print(f"Saved {len(df)} rows to {db_path}, table '{table_name}'")
 
 
+def save_pipeline_metrics(database_path, metrics):
+    """Append one run's data-quality and runtime metrics to SQLite."""
+    database_path = Path(database_path)
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+    metrics["run_timestamp"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pipeline_metrics (
+                run_id TEXT NOT NULL,
+                dataset_name TEXT NOT NULL,
+                run_timestamp TEXT NOT NULL,
+                rows_read INTEGER NOT NULL,
+                rows_written INTEGER NOT NULL,
+                rows_dropped INTEGER NOT NULL,
+                invalid_date_rows INTEGER NOT NULL,
+                duration_seconds REAL NOT NULL,
+                PRIMARY KEY (run_id, dataset_name)
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO pipeline_metrics (
+                run_id, dataset_name, run_timestamp, rows_read, rows_written,
+                rows_dropped, invalid_date_rows, duration_seconds
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                metrics["run_id"],
+                metrics["dataset_name"],
+                metrics["run_timestamp"],
+                metrics["rows_read"],
+                metrics["rows_written"],
+                metrics["rows_dropped"],
+                metrics["invalid_date_rows"],
+                metrics["duration_seconds"],
+            ),
+        )
+
+    print(
+        f"Saved metrics for {metrics['dataset_name']}: "
+        f"{metrics['rows_read']} read, {metrics['rows_written']} written"
+    )
+
+
 def write_to_sql(df, table_name):
     """Insert only records whose key is not already in the SQL table."""
     table_keys = {"systembook": "id", "customers": "customer_id"}
@@ -145,13 +194,18 @@ def save_outputs(df, csv_path, database_path, table_name,  write_sql=False):
         write_to_sql(df, table_name)
     
 
-def clean_books(input_path, database_name, write_sql=False):
-    """Load, clean, and save the book-loan data."""
+def clean_books(input_path, database_name, write_sql=False, run_id=None):
+    """Load, clean, save, and record metrics for the book-loan data."""
+    run_id = run_id or uuid4().hex
+    started_at = perf_counter()
+
     df = pd.read_csv(input_path)
-    print("Read book-loan data")
+    rows_read = len(df)
+    print(f"Read {rows_read} book-loan rows")
 
     df = format_columns(df)
     df = drop_missing_rows(df)
+    rows_dropped = rows_read - len(df)
 
     date_columns = ("book_checkout", "book_returned")
     for column in date_columns:
@@ -159,7 +213,8 @@ def clean_books(input_path, database_name, write_sql=False):
         df = parse_date_column(df, column)
 
     df["date_issue"] = df[list(date_columns)].isna().any(axis=1)
-    print(f"Flagged {int(df['date_issue'].sum())} rows with invalid dates")
+    invalid_date_rows = int(df["date_issue"].sum())
+    print(f"Flagged {invalid_date_rows} rows with invalid dates")
 
     for column in ("id", "customer_id"):
         df = convert_to_int(df, column)
@@ -180,15 +235,29 @@ def clean_books(input_path, database_name, write_sql=False):
         "systembook",
         write_sql=write_sql
     )
+    save_pipeline_metrics(database_name, {
+        "run_id": run_id,
+        "dataset_name": "systembook",
+        "rows_read": rows_read,
+        "rows_written": len(df),
+        "rows_dropped": rows_dropped,
+        "invalid_date_rows": invalid_date_rows,
+        "duration_seconds": round(perf_counter() - started_at, 4),
+    })
 
 
-def clean_customers(input_path, database_name,write_sql=False):
-    """Load, clean, and save the customer data."""
+def clean_customers(input_path, database_name, write_sql=False, run_id=None):
+    """Load, clean, save, and record metrics for customer data."""
+    run_id = run_id or uuid4().hex
+    started_at = perf_counter()
+
     df = pd.read_csv(input_path)
-    print("Read customer data")
+    rows_read = len(df)
+    print(f"Read {rows_read} customer rows")
 
     df = format_columns(df)
     df = drop_missing_rows(df)
+    rows_dropped = rows_read - len(df)
     df = convert_to_int(df, "customer_id")
 
     save_outputs(
@@ -198,11 +267,32 @@ def clean_customers(input_path, database_name,write_sql=False):
         "customers",
         write_sql=write_sql
     )
+    save_pipeline_metrics(database_name, {
+        "run_id": run_id,
+        "dataset_name": "customers",
+        "rows_read": rows_read,
+        "rows_written": len(df),
+        "rows_dropped": rows_dropped,
+        "invalid_date_rows": 0,
+        "duration_seconds": round(perf_counter() - started_at, 4),
+    })
 
-def clean_pipeline(  books_path, customer_path, database_name, write_sql=False):
-    """Run all data-cleaning steps."""
-    clean_books( books_path, database_name, write_sql=False)
-    clean_customers(customer_path, database_name, write_sql=False)
+
+def clean_pipeline(books_path, customer_path, database_name, write_sql=False):
+    """Run both data-cleaning steps under one run ID."""
+    run_id = uuid4().hex
+    clean_books(
+        books_path,
+        database_name,
+        write_sql=write_sql,
+        run_id=run_id,
+    )
+    clean_customers(
+        customer_path,
+        database_name,
+        write_sql=write_sql,
+        run_id=run_id,
+    )
 
 def main():
         parser = argparse.ArgumentParser(
