@@ -223,8 +223,8 @@ def main():
             help="Path to the customer CSV",
                         ),
         parser.add_argument( "--database-name",
-            default="data/library_app.db",
-            help="database name",
+            default=str(Path(__file__).resolve().parent / "library_app.db"),
+            help="Path to the SQLite database file",
                         )
         args = parser.parse_args()
  
