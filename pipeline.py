@@ -2,6 +2,10 @@ import pandas as pd
 import argparse
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL
+import sqlite3
+from pathlib import Path
+
+import pandas as pd
 
 
 # SQL Server connection for the local development VM.
@@ -76,6 +80,21 @@ def calculate_days_borrowed(df, returned_column, checkout_column):
     print("Calculated days borrowed")
     return (df[returned_column] - df[checkout_column]).dt.days
 
+def save_dataframe_to_sqlite(df, db_path, table_name):
+    # Write a pandas DataFrame to a table in a SQLite database
+    db_path = Path(db_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with sqlite3.connect(db_path) as connection:
+        df.to_sql(
+            name=table_name,
+            con=connection,
+            if_exists="replace",
+            index=False,
+        )
+
+    print(f"Saved {len(df)} rows to {db_path}, table '{table_name}'")
+
 
 def write_to_sql(df, table_name):
     """Insert only records whose key is not already in the SQL table."""
@@ -115,15 +134,18 @@ def write_to_sql(df, table_name):
     )
 
 
-def save_outputs(df, csv_path, table_name, write_sql=False):
+def save_outputs(df, csv_path, database_path, table_name,  write_sql=False):
     """Save cleaned data to CSV and insert new records into SQL Server."""
     df.to_csv(csv_path, index=False)
     print(f"Wrote cleaned data to {csv_path}")
+
+    save_dataframe_to_sqlite(df, database_path, table_name)
+    
     if write_sql:
         write_to_sql(df, table_name)
+    
 
-
-def clean_books(input_path, write_sql=False):
+def clean_books(input_path, database_name, write_sql=False):
     """Load, clean, and save the book-loan data."""
     df = pd.read_csv(input_path)
     print("Read book-loan data")
@@ -154,12 +176,13 @@ def clean_books(input_path, write_sql=False):
     save_outputs(
         df,
         "data/03_Library Systembook_cleaned.csv",
+        database_name,
         "systembook",
         write_sql=write_sql
     )
 
 
-def clean_customers(input_path, write_sql=False):
+def clean_customers(input_path, database_name,write_sql=False):
     """Load, clean, and save the customer data."""
     df = pd.read_csv(input_path)
     print("Read customer data")
@@ -171,14 +194,15 @@ def clean_customers(input_path, write_sql=False):
     save_outputs(
         df,
         "data/03_Library SystemCustomers_cleaned.csv",
+        database_name,
         "customers",
         write_sql=write_sql
     )
 
-def clean_pipeline(  books_path, customer_path, write_sql=False):
+def clean_pipeline(  books_path, customer_path, database_name, write_sql=False):
     """Run all data-cleaning steps."""
-    clean_books( books_path, write_sql=False)
-    clean_customers(customer_path, write_sql=False)
+    clean_books( books_path, database_name, write_sql=False)
+    clean_customers(customer_path, database_name, write_sql=False)
 
 def main():
         parser = argparse.ArgumentParser(
@@ -197,6 +221,10 @@ def main():
         parser.add_argument( "--customers-file",
             default="data/03_Library SystemCustomers.csv",
             help="Path to the customer CSV",
+                        ),
+        parser.add_argument( "--database-name",
+            default=str(Path(__file__).resolve().parent / "library_app.db"),
+            help="Path to the SQLite database file",
                         )
         args = parser.parse_args()
  
@@ -204,6 +232,7 @@ def main():
             books_path=args.books_file,
             customer_path=args.customers_file,
             write_sql=args.write_sql,
+            database_name=args.database_name
                 )       
 
 if __name__ == "__main__":
