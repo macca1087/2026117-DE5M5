@@ -8,7 +8,7 @@ RUN  pip install -r requirements.txt
 ENTRYPOINT ["python3","app.py"]
 
 # docker comands 
-# docker volume create calculator_app
+# docker volume create library_app_vol
 
 # docker build  -t calculator_app_v1  .
 # docker run --rm -v calculator_app:/data calculator_app_v1

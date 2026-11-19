@@ -4,6 +4,8 @@ Sean was here
 
 https://github.com/niroshsuthagar-QA/20261117---DE5M5
 
+# py -m pip install -r requirements.txt
+
 
 Task:
 

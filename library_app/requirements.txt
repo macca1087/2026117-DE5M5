@@ -4,3 +4,7 @@ matplotlib
 numpy
 sqlalchemy 
 pyodbc
+sqlite3
+pathlib
+time
+uuid
