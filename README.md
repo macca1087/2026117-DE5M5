@@ -26,6 +26,7 @@ Build and run a docker container that uses our calculator and outputs 247/12.
 Stretch 1: 
 Try to persist the answers in a docker volume.
 
+
 Stretch 2: 
 Look into how you can create a SQL Lite DB with python. Try and write a simple table using Python.
 

@@ -11,7 +11,7 @@ ENTRYPOINT ["python3","app.py"]
 
 # docker build  -t calculator_app_v1  .
 # docker run --rm -v calculator_app:/data calculator_app_v1
-
+# docker run --rm -v calculator_app:/data --entrypoint cat calculator_app_v1 /data/my_calc.txt
 
 #Task:
 #    Build and run a docker container that uses our calculator and outputs 247/12.
